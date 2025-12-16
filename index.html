@@ -956,13 +956,18 @@
             // Reverse to get oldest first (for chart display)
             const sortedData = historyData.slice().reverse();
 
-            // Populate arrays from history
+            // Populate arrays from history - skip rows where all values are 0
             sortedData.forEach(row => {
                 const time = row['Time'] || row['Timestamp'] || '';
                 const o2ppm = parseFloat(row['O2 PPM']) || 0;
                 const o2flow = parseFloat(row['O2 Flow']) || 0;
                 const co2ppm = parseFloat(row['CO2 PPM']) || 0;
                 const co2flow = parseFloat(row['CO2 Flow']) || 0;
+
+                // Skip if all values are 0
+                if (o2ppm === 0 && o2flow === 0 && co2ppm === 0 && co2flow === 0) {
+                    return; // Skip this row
+                }
 
                 // Format time for display
                 let displayTime = time;
@@ -982,7 +987,7 @@
             drawChart('o2Chart', o2PPMData, o2FlowData, chartLabels, '#00ff88', '#00f5ff');
             drawChart('co2Chart', co2PPMData, co2FlowData, chartLabels, '#ff9500', '#ff3b5c');
 
-            console.log('History loaded:', chartLabels.length, 'records');
+            console.log('History loaded:', chartLabels.length, 'records (filtered)');
         }
 
         // Store last non-zero values
