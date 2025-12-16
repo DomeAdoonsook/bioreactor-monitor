@@ -908,9 +908,12 @@
         }
 
         function startRemoteDataFetch() {
-            // Fetch data every 10 seconds
+            // Fetch history first, then latest every 10 seconds
+            fetchHistoryFromGoogleSheet();
             fetchFromGoogleSheet();
             remoteDataTimer = setInterval(fetchFromGoogleSheet, 10000);
+            // Refresh history every 60 seconds
+            setInterval(fetchHistoryFromGoogleSheet, 60000);
             updateConnectionStatus('connected');
             document.getElementById('statusText').textContent = 'CLOUD DATA';
         }
@@ -927,6 +930,59 @@
                     console.error('Failed to fetch from Google Sheet:', error);
                     updateConnectionStatus('disconnected');
                 });
+        }
+
+        function fetchHistoryFromGoogleSheet() {
+            fetch(GOOGLE_SHEET_URL + '?action=history&count=30')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.data && data.data.length > 0) {
+                        updateRemoteHistory(data.data);
+                    }
+                })
+                .catch(error => {
+                    console.error('Failed to fetch history from Google Sheet:', error);
+                });
+        }
+
+        function updateRemoteHistory(historyData) {
+            // Clear existing data
+            chartLabels.length = 0;
+            o2PPMData.length = 0;
+            o2FlowData.length = 0;
+            co2PPMData.length = 0;
+            co2FlowData.length = 0;
+
+            // Reverse to get oldest first (for chart display)
+            const sortedData = historyData.slice().reverse();
+
+            // Populate arrays from history
+            sortedData.forEach(row => {
+                const time = row['Time'] || row['Timestamp'] || '';
+                const o2ppm = parseFloat(row['O2 PPM']) || 0;
+                const o2flow = parseFloat(row['O2 Flow']) || 0;
+                const co2ppm = parseFloat(row['CO2 PPM']) || 0;
+                const co2flow = parseFloat(row['CO2 Flow']) || 0;
+
+                // Format time for display
+                let displayTime = time;
+                if (time && time.includes(' ')) {
+                    displayTime = time.split(' ')[0]; // Get just time part
+                }
+
+                chartLabels.push(displayTime);
+                o2PPMData.push(o2ppm);
+                o2FlowData.push(o2flow);
+                co2PPMData.push(co2ppm);
+                co2FlowData.push(co2flow);
+            });
+
+            // Update table and charts
+            updateTable();
+            drawChart('o2Chart', o2PPMData, o2FlowData, chartLabels, '#00ff88', '#00f5ff');
+            drawChart('co2Chart', co2PPMData, co2FlowData, chartLabels, '#ff9500', '#ff3b5c');
+
+            console.log('History loaded:', chartLabels.length, 'records');
         }
 
         function updateRemoteDisplay(data) {
