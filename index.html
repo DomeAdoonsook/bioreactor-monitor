@@ -985,6 +985,12 @@
             console.log('History loaded:', chartLabels.length, 'records');
         }
 
+        // Store last non-zero values
+        let lastValidO2PPM = 0;
+        let lastValidCO2PPM = 0;
+        let lastValidO2Flow = 0;
+        let lastValidCO2Flow = 0;
+
         function updateRemoteDisplay(data) {
             // Update sensor values from Google Sheet data
             const o2ppm = parseFloat(data['O2 PPM']) || 0;
@@ -992,11 +998,17 @@
             const o2flow = parseFloat(data['O2 Flow']) || 0;
             const co2flow = parseFloat(data['CO2 Flow']) || 0;
 
-            // Update display
-            document.getElementById('o2Value').textContent = o2ppm.toFixed(0);
-            document.getElementById('co2Value').textContent = co2ppm.toFixed(0);
-            document.getElementById('o2FlowValue').textContent = o2flow.toFixed(3);
-            document.getElementById('co2FlowValue').textContent = co2flow.toFixed(4);
+            // Only update if value is not 0, otherwise keep last valid value
+            if (o2ppm > 0) lastValidO2PPM = o2ppm;
+            if (co2ppm > 0) lastValidCO2PPM = co2ppm;
+            if (o2flow > 0) lastValidO2Flow = o2flow;
+            if (co2flow > 0) lastValidCO2Flow = co2flow;
+
+            // Update display with last valid values
+            document.getElementById('o2Value').textContent = lastValidO2PPM.toFixed(0);
+            document.getElementById('co2Value').textContent = lastValidCO2PPM.toFixed(0);
+            document.getElementById('o2FlowValue').textContent = lastValidO2Flow.toFixed(3);
+            document.getElementById('co2FlowValue').textContent = lastValidCO2Flow.toFixed(4);
 
             // Update sensor status
             updateSensorStatus('o2', true);
