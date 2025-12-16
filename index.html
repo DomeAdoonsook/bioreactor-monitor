@@ -886,6 +886,70 @@
             });
         }
 
+        // ================== Fetch Data from Google Sheet (for Remote Dashboard) ==================
+        let isRemoteMode = false;
+        let remoteDataTimer = null;
+
+        function checkIfRemoteMode() {
+            // Check if WebSocket URL is localhost - if not accessible, switch to remote mode
+            const wsUrl = document.getElementById('wsUrl').value;
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && !window.location.hostname.includes('192.168')) {
+                // Running on GitHub Pages or external server
+                isRemoteMode = true;
+                startRemoteDataFetch();
+                addLog('info', 'Remote mode: Fetching data from Google Sheet');
+            }
+        }
+
+        function startRemoteDataFetch() {
+            // Fetch data every 10 seconds
+            fetchFromGoogleSheet();
+            remoteDataTimer = setInterval(fetchFromGoogleSheet, 10000);
+            updateConnectionStatus('connected');
+            document.getElementById('statusText').textContent = 'CLOUD DATA';
+        }
+
+        function fetchFromGoogleSheet() {
+            fetch(GOOGLE_SHEET_URL + '?action=latest')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.data) {
+                        updateRemoteDisplay(data.data);
+                    }
+                })
+                .catch(error => {
+                    console.error('Failed to fetch from Google Sheet:', error);
+                    updateConnectionStatus('disconnected');
+                });
+        }
+
+        function updateRemoteDisplay(data) {
+            // Update sensor values from Google Sheet data
+            const o2ppm = parseFloat(data['O2 PPM']) || 0;
+            const co2ppm = parseFloat(data['CO2 PPM']) || 0;
+            const o2flow = parseFloat(data['O2 Flow']) || 0;
+            const co2flow = parseFloat(data['CO2 Flow']) || 0;
+
+            // Update display
+            document.getElementById('o2Value').textContent = o2ppm.toFixed(0);
+            document.getElementById('co2Value').textContent = co2ppm.toFixed(0);
+            document.getElementById('o2FlowValue').textContent = o2flow.toFixed(3);
+            document.getElementById('co2FlowValue').textContent = co2flow.toFixed(4);
+
+            // Update sensor status
+            updateSensorStatus('o2', true);
+            updateSensorStatus('co2', true);
+
+            // Update timestamp if available
+            if (data['Timestamp'] || data['Time']) {
+                const timestamp = data['Timestamp'] || data['Time'];
+                console.log('Last update:', timestamp);
+            }
+
+            updateConnectionStatus('connected');
+            document.getElementById('statusText').textContent = 'CLOUD DATA';
+        }
+
         function exportToCSV() {
             if (chartLabels.length === 0) {
                 alert('No data to export');
@@ -1477,8 +1541,11 @@
             startChartUpdates();
             addLog('info', 'Charts initialized successfully');
 
-            // Auto Connect
-            if (CONFIG.autoConnect) {
+            // Check if running in remote mode (GitHub Pages)
+            checkIfRemoteMode();
+
+            // Auto Connect (only if not in remote mode)
+            if (CONFIG.autoConnect && !isRemoteMode) {
                 addLog('info', 'Auto-connect enabled, connecting...');
                 setTimeout(() => {
                     connect();
